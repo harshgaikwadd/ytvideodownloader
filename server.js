@@ -21,7 +21,6 @@ app.post('/api/info', async (req, res) => {
         const info = await ytdl.getInfo(url);
         const details = info.videoDetails;
 
-        // Convert duration seconds to MM:SS format
         const seconds = parseInt(details.lengthSeconds || '0');
         const durationStr = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 
@@ -36,7 +35,7 @@ app.post('/api/info', async (req, res) => {
     }
 });
 
-// Download video or audio stream
+// Download video or audio
 app.get('/api/download', async (req, res) => {
     const { url, quality } = req.query;
     if (!url || !quality) return res.status(400).send('Missing parameters');
