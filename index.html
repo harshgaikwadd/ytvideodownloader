@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Free Media Downloader</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
+
+  <div class="max-w-xl w-full bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700">
+    <h1 class="text-3xl font-bold text-center mb-2 bg-gradient-to-r from-red-500 to-pink-500 bg-clip-text text-transparent">
+      Media Downloader
+    </h1>
+    <p class="text-slate-400 text-center mb-6">Unlimited Video & MP3 Downloads • Free & Instant</p>
+
+    <!-- Input Row -->
+    <div class="flex gap-2 mb-6">
+      <input id="videoUrl" type="text" placeholder="Paste YouTube link here..." 
+             class="flex-1 px-4 py-3 rounded-xl bg-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-red-500 border border-slate-600">
+      <button id="fetchBtn" onclick="fetchMetadata()" 
+              class="px-6 py-3 bg-red-600 hover:bg-red-700 font-semibold rounded-xl transition-all flex items-center justify-center min-w-[100px]">
+        <span id="btnText">Fetch</span>
+        <svg id="spinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Output Section -->
+    <div id="resultContainer" class="hidden space-y-4">
+      <div class="flex gap-4 items-center bg-slate-700/50 p-3 rounded-xl">
+        <img id="thumb" class="w-28 rounded-lg object-cover" src="" alt="Thumbnail">
+        <div>
+          <h3 id="videoTitle" class="font-semibold line-clamp-2 text-sm"></h3>
+          <p id="videoDuration" class="text-xs text-slate-400 mt-1"></p>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium mb-2 text-slate-300">Select Format / Quality:</label>
+        <select id="qualitySelect" class="w-full px-4 py-3 rounded-xl bg-slate-700 text-white border border-slate-600 focus:outline-none">
+          <optgroup label="Audio Only">
+            <option value="mp3">MP3 Audio (High Quality)</option>
+          </optgroup>
+          <optgroup label="Video Resolutions">
+            <option value="2160p">2160p (4K)</option>
+            <option value="1440p">1440p (2K)</option>
+            <option value="1080p" selected>1080p (Full HD)</option>
+            <option value="720p">720p (HD)</option>
+            <option value="480p">480p</option>
+            <option value="360p">360p</option>
+            <option value="240p">240p</option>
+            <option value="144p">144p</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <button onclick="downloadVideo()" 
+              class="w-full py-3 bg-green-600 hover:bg-green-700 font-semibold rounded-xl transition-all">
+        Download Now
+      </button>
+    </div>
+  </div>
+
+  <script>
+    async function fetchMetadata() {
+      const url = document.getElementById('videoUrl').value;
+      if (!url) return alert('Please enter a YouTube URL');
+
+      // Show spinner
+      document.getElementById('btnText').classList.add('hidden');
+      document.getElementById('spinner').classList.remove('hidden');
+
+      try {
+        const response = await fetch('http://localhost:5000/api/info', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+
+        document.getElementById('thumb').src = data.thumbnail;
+        document.getElementById('videoTitle').innerText = data.title;
+        document.getElementById('videoDuration').innerText = `Duration: ${data.duration}`;
+        document.getElementById('resultContainer').classList.remove('hidden');
+      } catch (err) {
+        alert(err.message || 'Failed to fetch details');
+      } finally {
+        // Hide spinner
+        document.getElementById('btnText').classList.remove('hidden');
+        document.getElementById('spinner').classList.add('hidden');
+      }
+    }
+
+    function downloadVideo() {
+      const url = encodeURIComponent(document.getElementById('videoUrl').value);
+      const quality = document.getElementById('qualitySelect').value;
+      window.location.href = `http://localhost:5000/api/download?url=${url}&quality=${quality}`;
+    }
+  </script>
+</body>
+</html>
