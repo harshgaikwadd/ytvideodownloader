@@ -28,13 +28,13 @@
       <p id="videoAuthor" class="text-xs text-slate-400 mb-4"></p>
 
       <div class="flex gap-2 mb-3">
-        <select id="qualitySelect" class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg p-2 focus:outline-none">
-          <option value="1080">1080p Full HD (MP4)</option>
-          <option value="720">720p HD (MP4)</option>
-          <option value="480">480p (MP4)</option>
-          <option value="360">360p (MP4)</option>
-          <option value="mp3">Audio Only (MP3)</option>
-        </select>
+        <select id="qualitySelect" class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all cursor-pointer shadow-inner">
+  <option value="1080" class="bg-slate-900 text-slate-100 py-1">1080p Full HD (MP4)</option>
+  <option value="720" class="bg-slate-900 text-slate-100 py-1">720p HD (MP4)</option>
+  <option value="480" class="bg-slate-900 text-slate-100 py-1">480p (MP4)</option>
+  <option value="360" class="bg-slate-900 text-slate-100 py-1">360p (MP4)</option>
+  <option value="mp3" class="bg-slate-900 text-slate-100 py-1">Audio Only (MP3)</option>
+</select>
         <button id="downloadBtn" onclick="downloadMedia()" class="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg w-full">
           Download
         </button>
