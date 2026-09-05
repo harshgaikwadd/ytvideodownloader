@@ -65,6 +65,8 @@
   </div>
 
   <script>
+    const API_BASE_URL = 'https://ytvideodownloader-api.onrender.com';
+
     async function fetchMetadata() {
       const url = document.getElementById('videoUrl').value;
       if (!url) return alert('Please enter a YouTube URL');
@@ -74,7 +76,7 @@
       document.getElementById('spinner').classList.remove('hidden');
 
       try {
-        const response = await fetch('http://localhost:5000/api/info', {
+        const response = await fetch(`${API_BASE_URL}/api/info`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url })
@@ -99,7 +101,7 @@
     function downloadVideo() {
       const url = encodeURIComponent(document.getElementById('videoUrl').value);
       const quality = document.getElementById('qualitySelect').value;
-      window.location.href = `http://localhost:5000/api/download?url=${url}&quality=${quality}`;
+      window.location.href = `${API_BASE_URL}/api/download?url=${url}&quality=${quality}`;
     }
   </script>
 </body>

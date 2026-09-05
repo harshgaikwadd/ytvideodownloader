@@ -5,6 +5,9 @@ const { YtDlp } = require('@abdullah2993/ytdlp-nodejs');
 const app = express();
 const ytdlp = new YtDlp();
 
+// Environment port for Render / Heroku compatibility
+const PORT = process.env.PORT || 5000;
+
 app.use(cors());
 app.use(express.json());
 
@@ -16,11 +19,12 @@ app.post('/api/info', async (req, res) => {
     try {
         const info = await ytdlp.getInfoAsync(url);
         res.json({
-            title: info.title,
-            thumbnail: info.thumbnail,
-            duration: info.duration_string,
+            title: info.title || 'Unknown Title',
+            thumbnail: info.thumbnail || '',
+            duration: info.duration_string || info.duration || 'N/A',
         });
     } catch (err) {
+        console.error('Info Error:', err);
         res.status(500).json({ error: 'Failed to fetch video details' });
     }
 });
@@ -33,27 +37,29 @@ app.get('/api/download', async (req, res) => {
     try {
         if (quality === 'mp3') {
             res.header('Content-Disposition', 'attachment; filename="audio.mp3"');
+            res.header('Content-Type', 'audio/mpeg');
+            
             const streamBuilder = ytdlp.stream(url, {
-                format: {
-                    filter: 'audioonly',
-                    type: 'mp3'
-                }
+                format: 'bestaudio/best'
             });
             return streamBuilder.pipe(res);
         }
 
         res.header('Content-Disposition', `attachment; filename="video_${quality}.mp4"`);
+        res.header('Content-Type', 'video/mp4');
+
+        // Extract numeric height (e.g., '1080p' -> '1080')
+        const height = quality.replace('p', '');
+        
         const streamBuilder = ytdlp.stream(url, {
-            format: {
-                filter: 'mergevideo',
-                quality: quality,
-                type: 'mp4'
-            }
+            format: `bestvideo[height<=${height}]+bestaudio/best`
         });
+        
         streamBuilder.pipe(res);
     } catch (err) {
+        console.error('Download Error:', err);
         res.status(500).send('Download error');
     }
 });
 
-app.listen(5000, () => console.log('Server running on port 5000'));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
