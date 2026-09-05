@@ -29,8 +29,11 @@
 
       <div class="flex gap-2 mb-3">
         <select id="qualitySelect" class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg p-2 focus:outline-none">
-          <option value="mp4">Video (MP4)</option>
-          <option value="mp3">Audio (MP3)</option>
+          <option value="1080">1080p Full HD (MP4)</option>
+          <option value="720">720p HD (MP4)</option>
+          <option value="480">480p (MP4)</option>
+          <option value="360">360p (MP4)</option>
+          <option value="mp3">Audio Only (MP3)</option>
         </select>
         <button id="downloadBtn" onclick="downloadMedia()" class="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg w-full">
           Download
@@ -46,7 +49,6 @@
       const urlInput = document.getElementById('videoUrl').value.trim();
       if (!urlInput) return alert('Please enter a YouTube URL');
 
-      // Extract video ID from standard or short links
       const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
       const match = urlInput.match(regExp);
       currentVideoId = (match && match[2].length === 11) ? match[2] : null;
@@ -78,6 +80,7 @@
       if (!currentVideoId) return alert('Fetch video details first');
       const format = document.getElementById('qualitySelect').value;
       
+      // Construct API query with specific quality setting
       const downloadUrl = `https://loader.to/api/button/?url=https://www.youtube.com/watch?v=${currentVideoId}&f=${format}`;
       window.open(downloadUrl, '_blank');
     }
