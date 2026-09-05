@@ -31,11 +31,10 @@
         <!-- Custom Styled Dropdown Container -->
         <div class="relative w-full">
           <select id="qualitySelect" class="w-full appearance-none bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg py-2.5 pl-3 pr-10 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all cursor-pointer shadow-inner">
-            <option value="1080" class="bg-slate-900 text-slate-100 py-1">1080p Full HD (MP4)</option>
-            <option value="720" class="bg-slate-900 text-slate-100 py-1">720p HD (MP4)</option>
-            <option value="480" class="bg-slate-900 text-slate-100 py-1">480p (MP4)</option>
+            <option value="1080" class="bg-slate-900 text-slate-100 py-1">1080p (MP4)</option>
+            <option value="720" class="bg-slate-900 text-slate-100 py-1">720p (MP4)</option>
             <option value="360" class="bg-slate-900 text-slate-100 py-1">360p (MP4)</option>
-            <option value="mp3" class="bg-slate-900 text-slate-100 py-1">Audio Only (MP3)</option>
+            <option value="audio" class="bg-slate-900 text-slate-100 py-1">Audio Only (M4A/MP3)</option>
           </select>
 
           <!-- Custom SVG Arrow Icon -->
@@ -56,7 +55,7 @@
 
   <script>
     let currentVideoId = '';
-    let currentFullUrl = '';
+    let fetchedStreams = [];
 
     async function fetchMetadata() {
       const urlInput = document.getElementById('videoUrl').value.trim();
@@ -67,64 +66,55 @@
       currentVideoId = (match && match[2].length === 11) ? match[2] : null;
 
       if (!currentVideoId) return alert('Invalid YouTube URL format');
-      currentFullUrl = `https://www.youtube.com/watch?v=${currentVideoId}`;
 
       document.getElementById('btnText').classList.add('hidden');
       document.getElementById('spinner').classList.remove('hidden');
 
-      try {
-        const response = await fetch(`https://noembed.com/embed?url=${currentFullUrl}`);
-        const data = await response.json();
+      const instances = [
+        'https://inv.hostux.net',
+        'https://invidious.nerdvpn.de',
+        'https://invidious.flokinet.to'
+      ];
 
-        if (data.error) throw new Error('Video not found');
-
-        document.getElementById('thumb').src = `https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`;
-        document.getElementById('videoTitle').innerText = data.title;
-        document.getElementById('videoAuthor').innerText = `Channel: ${data.author_name}`;
-        document.getElementById('resultContainer').classList.remove('hidden');
-      } catch (err) {
-        alert('Failed to fetch video details. Ensure the link is valid.');
-      } finally {
-        document.getElementById('btnText').classList.remove('hidden');
-        document.getElementById('spinner').classList.add('hidden');
+      let data = null;
+      for (const instance of instances) {
+        try {
+          const res = await fetch(`${instance}/api/v1/videos/${currentVideoId}`);
+          if (res.ok) {
+            data = await res.json();
+            break;
+          }
+        } catch (e) {
+          continue;
+        }
       }
+
+      document.getElementById('btnText').classList.remove('hidden');
+      document.getElementById('spinner').classList.add('hidden');
+
+      if (!data) return alert('Failed to retrieve video details. Try again in a few seconds.');
+
+      fetchedStreams = data.formatStreams || [];
+      document.getElementById('thumb').src = `https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`;
+      document.getElementById('videoTitle').innerText = data.title;
+      document.getElementById('videoAuthor').innerText = `Channel: ${data.author}`;
+      document.getElementById('resultContainer').classList.remove('hidden');
     }
 
-    async function downloadMedia() {
-      if (!currentFullUrl) return alert('Fetch video details first');
-      const selectedQuality = document.getElementById('qualitySelect').value;
+    function downloadMedia() {
+      if (!currentVideoId) return alert('Fetch video details first');
+      const selectedFormat = document.getElementById('qualitySelect').value;
 
-      document.getElementById('dlText').classList.add('hidden');
-      document.getElementById('dlSpinner').classList.remove('hidden');
+      if (selectedFormat === 'audio') {
+        window.open(`https://inv.hostux.net/latest_version?id=${currentVideoId}&itag=140`, '_blank');
+        return;
+      }
 
-      try {
-        const payload = {
-          url: currentFullUrl,
-          videoQuality: selectedQuality === 'mp3' ? '720' : selectedQuality,
-          downloadMode: selectedQuality === 'mp3' ? 'audio' : 'auto'
-        };
-
-        const res = await fetch('https://api.cobalt.tools/api/json', {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await res.json();
-
-        if (data.url) {
-          window.location.href = data.url;
-        } else {
-          alert('Could not generate direct stream. Try another quality.');
-        }
-      } catch (err) {
-        alert('Download server busy. Please try again in a few seconds.');
-      } finally {
-        document.getElementById('dlText').classList.remove('hidden');
-        document.getElementById('dlSpinner').classList.add('hidden');
+      const matchingStream = fetchedStreams.find(s => s.qualityLabel && s.qualityLabel.includes(selectedFormat));
+      if (matchingStream && matchingStream.url) {
+        window.open(matchingStream.url, '_blank');
+      } else {
+        window.open(`https://inv.hostux.net/latest_version?id=${currentVideoId}&itag=22`, '_blank');
       }
     }
   </script>
