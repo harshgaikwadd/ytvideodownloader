@@ -12,6 +12,7 @@
   "type": "commonjs",
   "dependencies": {
     "@abdullah2993/ytdlp-nodejs": "^0.1.0",
+    "@distube/ytdl-core": "^4.16.12",
     "cors": "^2.8.6",
     "express": "^5.2.1"
   }

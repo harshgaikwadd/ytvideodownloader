@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { exec, spawn } = require('child_process');
+const ytdl = require('@distube/ytdl-core');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -8,59 +8,63 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Fetch metadata using yt-dlp CLI
-app.post('/api/info', (req, res) => {
+// Fetch metadata
+app.post('/api/info', async (req, res) => {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: 'URL is required' });
 
-    exec(`npx yt-dlp --dump-json "${url}"`, (error, stdout, stderr) => {
-        if (error) {
-            console.error('Info Error:', stderr || error.message);
-            return res.status(500).json({ error: 'Failed to fetch video details. Ensure link is public.' });
+    try {
+        if (!ytdl.validateURL(url)) {
+            return res.status(400).json({ error: 'Invalid YouTube URL' });
         }
 
-        try {
-            const info = JSON.parse(stdout);
-            res.json({
-                title: info.title || 'Unknown Title',
-                thumbnail: info.thumbnail || (info.thumbnails && info.thumbnails[0]?.url) || '',
-                duration: info.duration_string || `${Math.floor(info.duration / 60)}:${info.duration % 60}` || 'N/A'
-            });
-        } catch (e) {
-            res.status(500).json({ error: 'Failed to parse video info.' });
-        }
-    });
+        const info = await ytdl.getInfo(url);
+        const details = info.videoDetails;
+
+        // Convert duration seconds to MM:SS format
+        const seconds = parseInt(details.lengthSeconds || '0');
+        const durationStr = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+
+        res.json({
+            title: details.title || 'Unknown Title',
+            thumbnail: details.thumbnails[details.thumbnails.length - 1]?.url || '',
+            duration: durationStr
+        });
+    } catch (err) {
+        console.error('Info Error:', err.message);
+        res.status(500).json({ error: 'Failed to fetch video details. Ensure link is public.' });
+    }
 });
 
-// Stream video or audio using yt-dlp process
-app.get('/api/download', (req, res) => {
+// Download video or audio stream
+app.get('/api/download', async (req, res) => {
     const { url, quality } = req.query;
     if (!url || !quality) return res.status(400).send('Missing parameters');
 
-    let args = [];
+    try {
+        if (!ytdl.validateURL(url)) {
+            return res.status(400).send('Invalid YouTube URL');
+        }
 
-    if (quality === 'mp3') {
-        res.header('Content-Disposition', 'attachment; filename="audio.mp3"');
-        res.header('Content-Type', 'audio/mpeg');
-        args = ['-x', '--audio-format', 'mp3', '-o', '-', url];
-    } else {
+        if (quality === 'mp3') {
+            res.header('Content-Disposition', 'attachment; filename="audio.mp3"');
+            res.header('Content-Type', 'audio/mpeg');
+            return ytdl(url, { filter: 'audioonly', quality: 'highestaudio' }).pipe(res);
+        }
+
         const height = quality.replace('p', '');
         res.header('Content-Disposition', `attachment; filename="video_${quality}.mp4"`);
         res.header('Content-Type', 'video/mp4');
-        args = ['-f', `bestvideo[height<=${height}]+bestaudio/best`, '--merge-output-format', 'mp4', '-o', '-', url];
+
+        ytdl(url, {
+            filter: format => format.container === 'mp4' && format.height <= parseInt(height),
+            quality: 'highestvideo'
+        }).pipe(res);
+
+    } catch (err) {
+        console.error('Download Error:', err.message);
+        res.status(500).send('Download error');
     }
-
-    const ytdlpProcess = spawn('npx', ['yt-dlp', ...args]);
-
-    ytdlpProcess.stdout.pipe(res);
-
-    ytdlpProcess.stderr.on('data', (data) => {
-        console.error(`yt-dlp stderr: ${data}`);
-    });
-
-    req.on('close', () => {
-        ytdlpProcess.kill();
-    });
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
