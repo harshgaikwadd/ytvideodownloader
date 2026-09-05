@@ -28,15 +28,11 @@
       <p id="videoAuthor" class="text-xs text-slate-400 mb-4"></p>
 
       <div class="flex gap-2 mb-3">
-        <!-- Custom Styled Dropdown Container -->
+        <!-- Quality Dropdown -->
         <div class="relative w-full">
           <select id="qualitySelect" class="w-full appearance-none bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg py-2.5 pl-3 pr-10 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all cursor-pointer shadow-inner">
-            <option value="720" class="bg-slate-900 text-slate-100 py-1">720p HD (MP4)</option>
-            <option value="360" class="bg-slate-900 text-slate-100 py-1">360p (MP4)</option>
-            <option value="audio" class="bg-slate-900 text-slate-100 py-1">Audio Only (M4A)</option>
           </select>
 
-          <!-- Custom SVG Arrow Icon -->
           <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
             <svg class="w-4 h-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
               <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
@@ -45,8 +41,7 @@
         </div>
 
         <button id="downloadBtn" onclick="downloadMedia()" class="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg w-full flex items-center justify-center">
-          <span id="dlText">Download</span>
-          <div id="dlSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          Download
         </button>
       </div>
     </div>
@@ -54,7 +49,7 @@
 
   <script>
     let currentVideoId = '';
-    let fetchedStreams = [];
+    let availableStreams = [];
 
     async function fetchMetadata() {
       const urlInput = document.getElementById('videoUrl').value.trim();
@@ -69,18 +64,16 @@
       document.getElementById('btnText').classList.add('hidden');
       document.getElementById('spinner').classList.remove('hidden');
 
-      const proxy = 'https://corsproxy.io/?';
-      const instances = [
-        'https://inv.tux.pizza',
-        'https://invidious.nerdvpn.de',
-        'https://inv.hostux.net'
+      const pipedInstances = [
+        'https://pipedapi.kavin.rocks',
+        'https://api.piped.privacydev.net',
+        'https://pipedapi.tokhmi.xyz'
       ];
 
       let data = null;
-      for (const instance of instances) {
+      for (const instance of pipedInstances) {
         try {
-          const apiUrl = encodeURIComponent(`${instance}/api/v1/videos/${currentVideoId}`);
-          const res = await fetch(`${proxy}${apiUrl}`);
+          const res = await fetch(`${instance}/streams/${currentVideoId}`);
           if (res.ok) {
             data = await res.json();
             if (data && data.title) break;
@@ -93,31 +86,55 @@
       document.getElementById('btnText').classList.remove('hidden');
       document.getElementById('spinner').classList.add('hidden');
 
-      if (!data) return alert('Failed to retrieve video details. Please check the URL.');
+      if (!data) return alert('Failed to fetch video streams. YouTube may be throttling public instances.');
 
-      fetchedStreams = data.formatStreams || [];
-      document.getElementById('thumb').src = `https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`;
+      // Extract available stream sources
+      availableStreams = [...(data.videoStreams || []), ...(data.audioStreams || [])];
+
+      document.getElementById('thumb').src = data.thumbnailUrl || `https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`;
       document.getElementById('videoTitle').innerText = data.title;
-      document.getElementById('videoAuthor').innerText = `Channel: ${data.author}`;
+      document.getElementById('videoAuthor').innerText = `Channel: ${data.uploader}`;
+
+      // Populate dropdown dynamically with working qualities
+      const select = document.getElementById('qualitySelect');
+      select.innerHTML = '';
+
+      if (data.videoStreams && data.videoStreams.length > 0) {
+        data.videoStreams.filter(s => s.quality).slice(0, 4).forEach((stream, idx) => {
+          const opt = document.createElement('option');
+          opt.value = `video_${idx}`;
+          opt.textContent = `${stream.quality} (${stream.format || 'MP4'})`;
+          select.appendChild(opt);
+        });
+      }
+
+      if (data.audioStreams && data.audioStreams.length > 0) {
+        const audioOpt = document.createElement('option');
+        audioOpt.value = 'audio_best';
+        audioOpt.textContent = 'Audio Only (Best Quality)';
+        select.appendChild(audioOpt);
+      }
+
       document.getElementById('resultContainer').classList.remove('hidden');
     }
 
     function downloadMedia() {
-      if (!currentVideoId) return alert('Fetch video details first');
-      const selectedFormat = document.getElementById('qualitySelect').value;
+      const selectedVal = document.getElementById('qualitySelect').value;
+      if (!selectedVal) return alert('Select a format first');
 
-      if (selectedFormat === 'audio') {
-        const audioUrl = `https://inv.tux.pizza/latest_version?id=${currentVideoId}&itag=140`;
-        window.open(audioUrl, '_blank');
-        return;
+      let downloadUrl = '';
+      if (selectedVal === 'audio_best') {
+        const audioStream = availableStreams.find(s => s.mimeType && s.mimeType.includes('audio'));
+        if (audioStream) downloadUrl = audioStream.url;
+      } else {
+        const idx = parseInt(selectedVal.split('_')[1]);
+        if (availableStreams[idx]) downloadUrl = availableStreams[idx].url;
       }
 
-      const matchingStream = fetchedStreams.find(s => s.qualityLabel && s.qualityLabel.includes(selectedFormat));
-      if (matchingStream && matchingStream.url) {
-        window.open(matchingStream.url, '_blank');
+      if (downloadUrl) {
+        window.open(downloadUrl, '_blank');
       } else {
-        const fallbackUrl = `https://inv.tux.pizza/latest_version?id=${currentVideoId}&itag=22`;
-        window.open(fallbackUrl, '_blank');
+        alert('Stream URL not found');
       }
     }
   </script>
