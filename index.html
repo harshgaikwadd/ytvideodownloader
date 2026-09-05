@@ -1,51 +1,86 @@
-<script>
-  async function fetchMetadata() {
-    const urlInput = document.getElementById('videoUrl').value.trim();
-    if (!urlInput) return alert('Please enter a YouTube URL');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Free Media Downloader</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-white min-h-screen flex flex-col items-center justify-center p-4">
 
-    // Extract 11-character Video ID
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = urlInput.match(regExp);
-    const videoId = (match && match[2].length === 11) ? match[2] : null;
+  <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl text-center">
+    <h1 class="text-3xl font-bold text-red-500 mb-2">Media Downloader</h1>
+    <p class="text-slate-400 text-sm mb-6">Unlimited Video & MP3 Downloads • Free & Instant</p>
 
-    if (!videoId) return alert('Invalid YouTube URL');
+    <div class="flex gap-2 mb-4">
+      <input type="text" id="videoUrl" placeholder="Paste YouTube link here..." 
+             class="w-full px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-red-500 text-sm">
+      <button onclick="fetchMetadata()" class="bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg text-sm flex items-center justify-center min-w-[70px]">
+        <span id="btnText">Fetch</span>
+        <div id="spinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+      </button>
+    </div>
 
-    document.getElementById('btnText').classList.add('hidden');
-    document.getElementById('spinner').classList.remove('hidden');
+    <!-- Preview Container -->
+    <div id="resultContainer" class="hidden mt-6 text-left border-t border-slate-800 pt-4">
+      <img id="thumb" class="w-full rounded-lg mb-3 shadow" src="" alt="Thumbnail">
+      <h3 id="videoTitle" class="font-semibold text-slate-100 text-sm line-clamp-2 mb-1"></h3>
+      <p id="videoAuthor" class="text-xs text-slate-400 mb-4"></p>
 
-    try {
-      // Use YouTube oEmbed API directly from the browser
-      const response = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`);
-      const data = await response.json();
+      <div class="flex gap-2 mb-3">
+        <select id="qualitySelect" class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg p-2 focus:outline-none">
+          <option value="mp4">Video (MP4)</option>
+          <option value="mp3">Audio (MP3)</option>
+        </select>
+        <button id="downloadBtn" onclick="downloadMedia()" class="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg w-full">
+          Download
+        </button>
+      </div>
+    </div>
+  </div>
 
-      if (data.error) throw new Error('Video not found');
+  <script>
+    let currentVideoId = '';
 
-      document.getElementById('thumb').src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-      document.getElementById('videoTitle').innerText = data.title;
-      document.getElementById('videoDuration').innerText = `Author: ${data.author_name}`;
-      document.getElementById('resultContainer').classList.remove('hidden');
+    async function fetchMetadata() {
+      const urlInput = document.getElementById('videoUrl').value.trim();
+      if (!urlInput) return alert('Please enter a YouTube URL');
 
-      // Store active video ID on download button
-      document.getElementById('downloadBtn').setAttribute('data-id', videoId);
-    } catch (err) {
-      alert('Failed to fetch details');
-    } finally {
-      document.getElementById('btnText').classList.remove('hidden');
-      document.getElementById('spinner').classList.add('hidden');
+      // Extract video ID from standard or short links
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = urlInput.match(regExp);
+      currentVideoId = (match && match[2].length === 11) ? match[2] : null;
+
+      if (!currentVideoId) return alert('Invalid YouTube URL format');
+
+      document.getElementById('btnText').classList.add('hidden');
+      document.getElementById('spinner').classList.remove('hidden');
+
+      try {
+        const response = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${currentVideoId}`);
+        const data = await response.json();
+
+        if (data.error) throw new Error('Video not found');
+
+        document.getElementById('thumb').src = `https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`;
+        document.getElementById('videoTitle').innerText = data.title;
+        document.getElementById('videoAuthor').innerText = `Channel: ${data.author_name}`;
+        document.getElementById('resultContainer').classList.remove('hidden');
+      } catch (err) {
+        alert('Failed to fetch video details. Ensure the link is valid.');
+      } finally {
+        document.getElementById('btnText').classList.remove('hidden');
+        document.getElementById('spinner').classList.add('hidden');
+      }
     }
-  }
 
-  function downloadVideo() {
-    const videoId = document.getElementById('downloadBtn').getAttribute('data-id');
-    const quality = document.getElementById('qualitySelect').value;
-
-    if (!videoId) return alert('Fetch video details first');
-
-    // Redirect directly to browser-accessible download service
-    if (quality === 'mp3') {
-      window.open(`https://loader.to/api/button/?url=https://www.youtube.com/watch?v=${videoId}&f=mp3`, '_blank');
-    } else {
-      window.open(`https://loader.to/api/button/?url=https://www.youtube.com/watch?v=${videoId}&f=mp4`, '_blank');
+    function downloadMedia() {
+      if (!currentVideoId) return alert('Fetch video details first');
+      const format = document.getElementById('qualitySelect').value;
+      
+      const downloadUrl = `https://loader.to/api/button/?url=https://www.youtube.com/watch?v=${currentVideoId}&f=${format}`;
+      window.open(downloadUrl, '_blank');
     }
-  }
-</script>
+  </script>
+</body>
+</html>
